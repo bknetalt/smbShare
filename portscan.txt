@@ -1,0 +1,42 @@
+# Define the subnet range (e.g., 10.184.60.1 to 10.184.63.254)
+$startIP = [IPAddress]::Parse("10.184.60.1")
+$endIP = [IPAddress]::Parse("10.184.63.254")
+
+# Function to increment an IP address
+function Get-NextIPAddress {
+    param([IPAddress]$ip)
+    $bytes = $ip.GetAddressBytes()
+    for ($i = 3; $i -ge 0; $i--) {
+        if ($bytes[$i] -lt 255) {
+            $bytes[$i]++
+            return [IPAddress]::new($bytes)
+        } else {
+            $bytes[$i] = 0
+        }
+    }
+    return [IPAddress]::new($bytes)
+}
+
+# Loop through the IP range
+$currentIP = $startIP
+while ($currentIP -le $endIP) {
+    # Ping each IP to check if it's online
+    if (Test-Connection -ComputerName $currentIP -Count 1 -Quiet) {
+        Write-Host "$currentIP is online. Scanning for open shares..."
+
+        # Get the list of open shares using Get-WmiObject
+        try {
+            $shares = Get-WmiObject -Class Win32_Share -ComputerName $currentIP -ErrorAction Stop
+            foreach ($share in $shares) {
+                Write-Host "Open Share found on $currentIP: $($share.Name) - Path: $($share.Path)"
+            }
+        } catch {
+            Write-Host "Failed to query $currentIP for shares. Access might be denied."
+        }
+    } else {
+        Write-Host "$currentIP is offline."
+    }
+
+    # Get the next IP address
+    $currentIP = Get-NextIPAddress $currentIP
+}
